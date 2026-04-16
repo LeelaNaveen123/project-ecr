@@ -1,0 +1,41 @@
+pipeline {
+    agent any 
+    tools {
+        maven 'naveen'
+    }
+    stages {
+        stage ('git') {
+            steps {
+                git 'https://github.com/LeelaNaveen123/project-ecr.git'
+            }
+        }
+        stage ('maven') {
+            steps {
+                sh 'mvn clean package'
+            }
+        }
+        stage ('build') {
+            steps {
+                sh 'docker build -t ecr .'
+            }
+        }
+        stage ('script') {
+            steps {
+                sh '''
+                aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 387761228552.dkr.ecr.us-east-1.amazonaws.com
+                docker build -t project1:${BUILD_NUMBER} .
+                docker tag project1:${BUILD_NUMBER} 387761228552.dkr.ecr.us-east-1.amazonaws.com/project1:${BUILD_NUMBER}
+                docker push 387761228552.dkr.ecr.us-east-1.amazonaws.com/project1:${BUILD_NUMBER}
+                '''
+            }
+        }
+        stage ('deploy') {
+            steps {
+                sh '''
+aws eks --region us-east-1 update-kubeconfig --name my-cluster
+kubectl apply -f dep.yml
+'''
+            }
+        }
+    }
+}
